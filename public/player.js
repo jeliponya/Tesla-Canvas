@@ -57,7 +57,7 @@ function renderLoop() {
 
 function startPlayer(youtubeUrl) {
   playBtn.disabled = true; firstFrame = true; frameQueue.length = 0;
-  setStatus(""); setLoading("BaglanÄ±yor...");
+  setStatus(""); setLoading("Baglaniyor...");
   audio.src = "/api/audio?url=" + encodeURIComponent(youtubeUrl);
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   ws = new WebSocket(proto + "//" + location.host + "/ws/video?url=" + encodeURIComponent(youtubeUrl));
