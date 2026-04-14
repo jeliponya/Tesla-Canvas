@@ -12,6 +12,14 @@ const wss = new WebSocketServer({ server, path: "/ws/video" });
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
 
+// Opsiyonel: YT_COOKIES_FILE=/path/to/cookies.txt (yas kisitlili videolar icin)
+const YT_COOKIES = process.env.YT_COOKIES_FILE || null;
+
+function ytdlpArgs(extraArgs, url) {
+  const base = ["--no-playlist", ...extraArgs, url];
+  return YT_COOKIES ? ["--cookies", YT_COOKIES, ...base] : base;
+}
+
 // Bagimlilik kontrolu
 // ffmpeg: -version (tek tire), yt-dlp: --version (cift tire)
 function checkDependency(cmd, args) {
@@ -35,12 +43,10 @@ app.get("/api/audio", (req, res) => {
   const youtubeUrl = req.query.url;
   if (!youtubeUrl) return res.status(400).json({ error: "URL eksik" });
 
-  const ytDlp = spawn("yt-dlp", [
-    "-f", "bestaudio[ext=m4a]/bestaudio",
-    "--get-url",
-    "--no-playlist",
-    youtubeUrl,
-  ], { shell: true });
+  const ytDlp = spawn("yt-dlp", ytdlpArgs(
+    ["-f", "bestaudio[ext=m4a]/bestaudio", "--get-url"],
+    youtubeUrl
+  ), { shell: true });
 
   let audioUrl = "";
   ytDlp.stdout.on("data", (d) => (audioUrl += d.toString()));
@@ -72,12 +78,10 @@ wss.on("connection", (ws, req) => {
   console.log("[+] Yeni baglanti:", youtubeUrl);
   let ffmpegProc = null;
 
-  const ytDlp = spawn("yt-dlp", [
-    "-f", "best[height<=480][ext=mp4]/best[height<=480]/best",
-    "--get-url",
-    "--no-playlist",
-    youtubeUrl,
-  ], { shell: true });
+  const ytDlp = spawn("yt-dlp", ytdlpArgs(
+    ["-f", "best[height<=480][ext=mp4]/best[height<=480]/best", "--get-url"],
+    youtubeUrl
+  ), { shell: true });
 
   let videoUrl = "";
   ytDlp.stdout.on("data", (d) => (videoUrl += d.toString()));

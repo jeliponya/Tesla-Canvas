@@ -75,6 +75,43 @@ docker run -p 3000:3000 teslaplay
 
 ---
 
+## Ortam Degiskenleri
+
+`.env.example` dosyasini kopyalayarak `.env` olusturun:
+
+```bash
+cp .env.example .env
+```
+
+| Degisken | Varsayilan | Aciklama |
+|----------|-----------|----------|
+| `PORT` | `3000` | Sunucunun dinleyecegi port |
+| `YT_COOKIES_FILE` | *(yok)* | Yas kisitlili videolar icin cookies.txt dosya yolu |
+
+### Yas Kisitlili Videolar Icin Cookie Kurulumu
+
+YouTube API key **gerekmez.** `yt-dlp` tamamen API'siz calisir.  
+Ancak yas kisitlili veya oturum gerektiren icerikler icin tarayici cookie'si kullanabilirsiniz:
+
+```bash
+# 1. Tarayicinizdan cookies.txt dosyasi olusturun (Chrome ornegi)
+yt-dlp --cookies-from-browser chrome --cookies cookies.txt "https://www.youtube.com/watch?v=ORNEK"
+
+# 2. .env dosyasinda cookie yolunu belirtin
+echo "YT_COOKIES_FILE=/home/user/Tesla-Canvas/cookies.txt" >> .env
+
+# 3. Sunucuyu baslatirken env var olarak da verebilirsiniz
+YT_COOKIES_FILE=./cookies.txt npm start
+```
+
+Docker ile cookie kullanimi:
+```bash
+docker run -p 3000:3000 -v /host/path/cookies.txt:/app/cookies.txt \
+  -e YT_COOKIES_FILE=/app/cookies.txt teslaplay
+```
+
+---
+
 ## Proje Yapisi
 
 ```
@@ -84,7 +121,8 @@ Tesla-Canvas/
 │   ├── index.html     # Arayuz (giris + oynatici ekrani)
 │   └── player.js      # WebSocket istemcisi, canvas render dongusu
 ├── package.json
-└── Dockerfile
+├── Dockerfile
+└── .env.example       # Ortam degiskenleri sablonu
 ```
 
 ---
@@ -104,3 +142,4 @@ Tesla-Canvas/
 | "Eksik bagimlilik" uyarisi | `yt-dlp` veya `ffmpeg` PATH'de bulunamadi |
 | Ses gelmiyor | Tesla surucu modunda ses otomatik baslatma kisitlanmis olabilir, ekrana dokunun |
 | Yuksek gecikme | Ag baglantisinizi kontrol edin; FFmpeg `fps` ve `scale` parametrelerini dusurun |
+| "Video URL alinamadi" hatasi | `yt-dlp --update` ile guncelle; yas kisitlili icerik icin cookie ayarla |
