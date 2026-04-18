@@ -24,7 +24,7 @@ function ytdlpArgs(extraArgs, url) {
 // ffmpeg: -version (tek tire), yt-dlp: --version (cift tire)
 function checkDependency(cmd, args) {
   return new Promise((resolve) => {
-    const proc = spawn(cmd, args, { shell: true });
+    const proc = spawn(cmd, args);
     proc.on("close", (code) => resolve(code === 0));
     proc.on("error", () => resolve(false));
   });
@@ -46,7 +46,7 @@ app.get("/api/audio", (req, res) => {
   const ytDlp = spawn("yt-dlp", ytdlpArgs(
     ["-f", "bestaudio[ext=m4a]/bestaudio", "--get-url"],
     youtubeUrl
-  ), { shell: true });
+  ));
 
   let audioUrl = "";
   ytDlp.stdout.on("data", (d) => (audioUrl += d.toString()));
@@ -79,13 +79,13 @@ wss.on("connection", (ws, req) => {
   let ffmpegProc = null;
 
   const ytDlp = spawn("yt-dlp", ytdlpArgs(
-    ["-f", "best[height<=480][ext=mp4]/best[height<=480]/best", "--get-url"],
+    ["-f", "bestvideo[height<=480][ext=mp4]/bestvideo[height<=480]/best[height<=480]/best", "--get-url"],
     youtubeUrl
-  ), { shell: true });
+  ));
 
   let videoUrl = "";
   ytDlp.stdout.on("data", (d) => (videoUrl += d.toString()));
-  ytDlp.stderr.on("data", () => {});
+  ytDlp.stderr.on("data", (d) => process.stderr.write(d));
 
   ytDlp.on("close", (code) => {
     videoUrl = videoUrl.trim().split("\n")[0];
@@ -106,7 +106,7 @@ wss.on("connection", (ws, req) => {
       "-q:v", "5",
       "-an",
       "pipe:1",
-    ], { shell: true });
+    ]);
 
     let buf = Buffer.alloc(0);
 
