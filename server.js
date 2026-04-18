@@ -49,7 +49,7 @@ app.get("/api/check", async (req, res) => {
   res.json({ ytdlp, ffmpeg, ok: ytdlp && ffmpeg });
 });
 
-// Ses: yt-dlp ile URL al, tarayiciyi direkt YouTube CDN'e yonlendir
+// Ses: yt-dlp ile URL al, JSON olarak don (client direkt CDN'den oynatir)
 app.get("/api/audio", (req, res) => {
   const youtubeUrl = req.query.url;
   if (!youtubeUrl) return res.status(400).json({ error: "URL eksik" });
@@ -68,7 +68,7 @@ app.get("/api/audio", (req, res) => {
     if (code !== 0 || !audioUrl) {
       return res.status(500).json({ error: "Ses URL alinamadi" });
     }
-    res.redirect(audioUrl);
+    res.json({ url: audioUrl });
   });
 });
 

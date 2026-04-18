@@ -13,6 +13,7 @@ const fpsBadge         = document.getElementById("fps-badge");
 const depWarning       = document.getElementById("dep-warning");
 
 let ws = null, animFrameId = null, paused = false;
+let pendingAudioUrl = null, audioReady = false;
 const frameQueue = [];
 let frameCount = 0, lastFpsCheck = Date.now(), firstFrame = true;
 
@@ -45,9 +46,9 @@ function renderLoop() {
     playerScreen.style.display = "flex";
     pauseBtn.style.display = "inline-block";
     setLoading("");
-    // Sesi ilk video karesiyle esle: autoplay yok, burada baslatiyoruz
-    audio.currentTime = 0;
-    audio.play().catch(() => {});
+    // Ses ve video sync: ilk kare gelince audio URL hazirsa hemen basla
+    audioReady = true;
+    if (pendingAudioUrl) { audio.src = pendingAudioUrl; audio.play().catch(() => {}); }
   }
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
@@ -61,10 +62,19 @@ function renderLoop() {
 
 function startPlayer(youtubeUrl) {
   playBtn.disabled = true; firstFrame = true; paused = false;
+  pendingAudioUrl = null; audioReady = false;
   frameQueue.length = 0; pauseBtn.style.display = "none";
   pauseBtn.textContent = "Duraklat";
   setStatus(""); setLoading("Baglaniyor...");
-  audio.src = "/api/audio?url=" + encodeURIComponent(youtubeUrl);
+  // Audio URL'yi video ile paralel cek; ilk kare gelince ikisi birden baslar
+  fetch("/api/audio?url=" + encodeURIComponent(youtubeUrl))
+    .then(r => r.json())
+    .then(data => {
+      if (!data.url) return;
+      pendingAudioUrl = data.url;
+      if (audioReady) { audio.src = pendingAudioUrl; audio.play().catch(() => {}); }
+    })
+    .catch(() => {});
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   ws = new WebSocket(proto + "//" + location.host + "/ws/video?url=" + encodeURIComponent(youtubeUrl));
   ws.binaryType = "arraybuffer";
@@ -93,7 +103,8 @@ function stopPlayer() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   playerScreen.style.display = "none";
   inputScreen.style.display = "flex";
-  paused = false; pauseBtn.style.display = "none";
+  paused = false; pendingAudioUrl = null; audioReady = false;
+  pauseBtn.style.display = "none";
   playBtn.disabled = false; fpsBadge.textContent = "";
   setStatus(""); setLoading("");
 }
