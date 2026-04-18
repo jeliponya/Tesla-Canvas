@@ -57,19 +57,32 @@ wss.on("connection", (ws, req) => {
   console.log("[+] Yeni baglanti:", youtubeUrl);
   let ffmpegProc = null;
 
-  const ytDlp = spawn("yt-dlp", ytdlpArgs(
-    ["-f", "bestvideo[height<=480]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480]/best", "--get-url"],
+  // Video ve ses URL'lerini paralel olarak cek
+  const ytVideo = spawn("yt-dlp", ytdlpArgs(
+    ["-f", "bestvideo[height<=480][ext=mp4]/bestvideo[height<=480]/best[height<=480]/best", "--get-url"],
+    youtubeUrl
+  ));
+  const ytAudio = spawn("yt-dlp", ytdlpArgs(
+    ["-f", "bestaudio[ext=m4a]/bestaudio/best", "--get-url"],
     youtubeUrl
   ));
 
-  let rawUrls = "";
-  ytDlp.stdout.on("data", (d) => (rawUrls += d.toString()));
-  ytDlp.stderr.on("data", (d) => process.stderr.write(d));
+  let videoUrl = "", audioUrl = "";
+  ytVideo.stdout.on("data", (d) => (videoUrl += d.toString()));
+  ytVideo.stderr.on("data", (d) => process.stderr.write(d));
+  ytAudio.stdout.on("data", (d) => (audioUrl += d.toString()));
+  ytAudio.stderr.on("data", () => {});
 
-  ytDlp.on("close", (code) => {
-    const lines = rawUrls.trim().split("\n").map(l => l.trim()).filter(Boolean);
-    const videoUrl = lines[0];
-    const audioUrl = lines[1] || null;
+  ytAudio.on("close", (code) => {
+    audioUrl = audioUrl.trim().split("\n")[0];
+    if (code === 0 && audioUrl && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "audio", url: audioUrl }));
+      console.log("[~] Ses URL'si gonderildi");
+    }
+  });
+
+  ytVideo.on("close", (code) => {
+    videoUrl = videoUrl.trim().split("\n")[0];
 
     if (code !== 0 || !videoUrl) {
       if (ws.readyState === WebSocket.OPEN) {
@@ -77,12 +90,6 @@ wss.on("connection", (ws, req) => {
         ws.close();
       }
       return;
-    }
-
-    // Ses URL'si varsa (DASH stream) WebSocket ile gonder
-    if (audioUrl && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "audio", url: audioUrl }));
-      console.log("[~] Ses URL'si gonderildi");
     }
 
     console.log("[~] FFmpeg baslatiliyor...");
@@ -119,8 +126,8 @@ wss.on("connection", (ws, req) => {
     });
   });
 
-  ws.on("close", () => { if (ffmpegProc) ffmpegProc.kill(); });
-  ws.on("error", () => { if (ffmpegProc) ffmpegProc.kill(); });
+  ws.on("close", () => { if (ffmpegProc) ffmpegProc.kill(); ytAudio.kill(); });
+  ws.on("error", () => { if (ffmpegProc) ffmpegProc.kill(); ytAudio.kill(); });
 });
 
 const PORT = process.env.PORT || 3000;
