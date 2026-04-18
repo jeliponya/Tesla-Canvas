@@ -48,7 +48,7 @@ app.get("/api/check", async (req, res) => {
   res.json({ ytdlp, ffmpeg, ok: ytdlp && ffmpeg });
 });
 
-// Ses proxy - <audio> Tesla drive modunda calismaya devam eder
+// Ses: yt-dlp ile URL al, tarayiciyi direkt YouTube CDN'e yonlendir
 app.get("/api/audio", (req, res) => {
   const youtubeUrl = req.query.url;
   if (!youtubeUrl) return res.status(400).json({ error: "URL eksik" });
@@ -67,13 +67,7 @@ app.get("/api/audio", (req, res) => {
     if (code !== 0 || !audioUrl) {
       return res.status(500).json({ error: "Ses URL alinamadi" });
     }
-    const lib = audioUrl.startsWith("https") ? https : http;
-    lib.get(audioUrl, { headers: { "User-Agent": "Mozilla/5.0" } }, (audioRes) => {
-      res.setHeader("Content-Type", audioRes.headers["content-type"] || "audio/mp4");
-      res.setHeader("Cache-Control", "no-cache");
-      audioRes.pipe(res);
-      res.on("close", () => audioRes.destroy());
-    }).on("error", () => res.status(500).json({ error: "Ses proxy hatasi" }));
+    res.redirect(audioUrl);
   });
 });
 
