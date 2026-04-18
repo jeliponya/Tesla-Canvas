@@ -1,8 +1,7 @@
-﻿const express = require("express");
+const express = require("express");
 const { WebSocketServer, WebSocket } = require("ws");
 const { spawn } = require("child_process");
 const http = require("http");
-const https = require("https");
 const path = require("path");
 const fs = require("fs");
 
@@ -31,8 +30,6 @@ function ytdlpArgs(extraArgs, url) {
   return YT_COOKIES ? ["--cookies", YT_COOKIES, ...base] : base;
 }
 
-// Bagimlilik kontrolu
-// ffmpeg: -version (tek tire), yt-dlp: --version (cift tire)
 function checkDependency(cmd, args) {
   return new Promise((resolve) => {
     const proc = spawn(cmd, args);
@@ -49,32 +46,9 @@ app.get("/api/check", async (req, res) => {
   res.json({ ytdlp, ffmpeg, ok: ytdlp && ffmpeg });
 });
 
-// Ses: yt-dlp ile URL al, JSON olarak don (client direkt CDN'den oynatir)
-app.get("/api/audio", (req, res) => {
-  const youtubeUrl = req.query.url;
-  if (!youtubeUrl) return res.status(400).json({ error: "URL eksik" });
-
-  const ytDlp = spawn("yt-dlp", ytdlpArgs(
-    ["-f", "bestaudio[ext=m4a]/bestaudio", "--get-url"],
-    youtubeUrl
-  ));
-
-  let audioUrl = "";
-  ytDlp.stdout.on("data", (d) => (audioUrl += d.toString()));
-  ytDlp.stderr.on("data", (d) => process.stderr.write(d));
-
-  ytDlp.on("close", (code) => {
-    audioUrl = audioUrl.trim().split("\n")[0];
-    if (code !== 0 || !audioUrl) {
-      return res.status(500).json({ error: "Ses URL alinamadi" });
-    }
-    res.json({ url: audioUrl });
-  });
-});
-
-// Video frame WebSocket
-// Tesla <video> elementini bloklar ama <canvas> gecer.
-// FFmpeg -> JPEG kareler -> WebSocket -> canvas.drawImage()
+// Video + ses URL'lerini tek yt-dlp cagrisiyla al, WebSocket ile gonder
+// bestvideo+bestaudio formati: 2 satir cikti (video URL, audio URL)
+// combined format: 1 satir cikti (sadece video URL)
 wss.on("connection", (ws, req) => {
   const params = new URL(req.url, "http://localhost").searchParams;
   const youtubeUrl = params.get("url");
@@ -84,22 +58,31 @@ wss.on("connection", (ws, req) => {
   let ffmpegProc = null;
 
   const ytDlp = spawn("yt-dlp", ytdlpArgs(
-    ["-f", "bestvideo[height<=480][ext=mp4]/bestvideo[height<=480]/best[height<=480]/best", "--get-url"],
+    ["-f", "bestvideo[height<=480]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480]/best", "--get-url"],
     youtubeUrl
   ));
 
-  let videoUrl = "";
-  ytDlp.stdout.on("data", (d) => (videoUrl += d.toString()));
+  let rawUrls = "";
+  ytDlp.stdout.on("data", (d) => (rawUrls += d.toString()));
   ytDlp.stderr.on("data", (d) => process.stderr.write(d));
 
   ytDlp.on("close", (code) => {
-    videoUrl = videoUrl.trim().split("\n")[0];
+    const lines = rawUrls.trim().split("\n").map(l => l.trim()).filter(Boolean);
+    const videoUrl = lines[0];
+    const audioUrl = lines[1] || null;
+
     if (code !== 0 || !videoUrl) {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "error", msg: "Video URL alinamadi" }));
         ws.close();
       }
       return;
+    }
+
+    // Ses URL'si varsa (DASH stream) WebSocket ile gonder
+    if (audioUrl && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "audio", url: audioUrl }));
+      console.log("[~] Ses URL'si gonderildi");
     }
 
     console.log("[~] FFmpeg baslatiliyor...");

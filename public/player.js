@@ -13,7 +13,6 @@ const fpsBadge         = document.getElementById("fps-badge");
 const depWarning       = document.getElementById("dep-warning");
 
 let ws = null, animFrameId = null, paused = false;
-let pendingAudioUrl = null, audioReady = false;
 const frameQueue = [];
 let frameCount = 0, lastFpsCheck = Date.now(), firstFrame = true;
 
@@ -46,7 +45,6 @@ function renderLoop() {
     playerScreen.style.display = "flex";
     pauseBtn.style.display = "inline-block";
     setLoading("");
-    audioReady = true;
   }
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
@@ -64,22 +62,17 @@ function startPlayer(youtubeUrl) {
   frameQueue.length = 0; pauseBtn.style.display = "none";
   pauseBtn.textContent = "Duraklat";
   setStatus(""); setLoading("Baglaniyor...");
-  fetch("/api/audio?url=" + encodeURIComponent(youtubeUrl))
-    .then(r => r.json())
-    .then(data => {
-      if (!data.url) { setStatus("Ses URL alinamadi", "error"); return; }
-      pendingAudioUrl = data.url;
-      audio.src = data.url;
-      audio.play().catch(e => setStatus("Ses: " + e.message, "error"));
-    })
-    .catch(e => setStatus("Ses hatasi: " + e.message, "error"));
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   ws = new WebSocket(proto + "//" + location.host + "/ws/video?url=" + encodeURIComponent(youtubeUrl));
   ws.binaryType = "arraybuffer";
   ws.onopen = () => setLoading("Video hazirlaniyor...");
   ws.onmessage = async (event) => {
     if (typeof event.data === "string") {
-      try { const m = JSON.parse(event.data); if (m.type === "error") { setLoading(""); setStatus(m.msg, "error"); playBtn.disabled = false; } } catch {}
+      try {
+        const m = JSON.parse(event.data);
+        if (m.type === "error") { setLoading(""); setStatus(m.msg, "error"); playBtn.disabled = false; }
+        if (m.type === "audio" && m.url) { audio.src = m.url; audio.play().catch(() => {}); }
+      } catch {}
       return;
     }
     try {
@@ -101,8 +94,7 @@ function stopPlayer() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   playerScreen.style.display = "none";
   inputScreen.style.display = "flex";
-  paused = false; pendingAudioUrl = null; audioReady = false;
-  pauseBtn.style.display = "none";
+  paused = false; pauseBtn.style.display = "none";
   playBtn.disabled = false; fpsBadge.textContent = "";
   setStatus(""); setLoading("");
 }
