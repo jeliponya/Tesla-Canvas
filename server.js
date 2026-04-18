@@ -16,7 +16,7 @@ app.use(express.json());
 const YT_COOKIES = process.env.YT_COOKIES_FILE || null;
 
 function ytdlpArgs(extraArgs, url) {
-  const base = ["--no-playlist", ...extraArgs, url];
+  const base = ["--no-playlist", "--js-runtimes", "nodejs", ...extraArgs, url];
   return YT_COOKIES ? ["--cookies", YT_COOKIES, ...base] : base;
 }
 
