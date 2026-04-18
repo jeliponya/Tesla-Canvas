@@ -4,6 +4,7 @@ const { spawn } = require("child_process");
 const http = require("http");
 const https = require("https");
 const path = require("path");
+const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
@@ -12,8 +13,17 @@ const wss = new WebSocketServer({ server, path: "/ws/video" });
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
 
-// Opsiyonel: YT_COOKIES_FILE=/path/to/cookies.txt (yas kisitlili videolar icin)
-const YT_COOKIES = process.env.YT_COOKIES_FILE || null;
+// Cookie destegi: YT_COOKIES_B64 (Render icin base64) veya YT_COOKIES_FILE (local icin dosya yolu)
+const COOKIES_TMP = "/tmp/yt-cookies.txt";
+let YT_COOKIES = null;
+
+if (process.env.YT_COOKIES_B64) {
+  fs.writeFileSync(COOKIES_TMP, Buffer.from(process.env.YT_COOKIES_B64, "base64").toString("utf-8"));
+  YT_COOKIES = COOKIES_TMP;
+  console.log("[*] Cookie dosyasi yuklendi (/tmp/yt-cookies.txt)");
+} else if (process.env.YT_COOKIES_FILE) {
+  YT_COOKIES = process.env.YT_COOKIES_FILE;
+}
 
 function ytdlpArgs(extraArgs, url) {
   const base = ["--no-playlist", "--js-runtimes", "node", ...extraArgs, url];
