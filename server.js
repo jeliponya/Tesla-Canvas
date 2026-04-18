@@ -61,7 +61,7 @@ app.get("/api/audio", (req, res) => {
 
   let audioUrl = "";
   ytDlp.stdout.on("data", (d) => (audioUrl += d.toString()));
-  ytDlp.stderr.on("data", () => {});
+  ytDlp.stderr.on("data", (d) => process.stderr.write(d));
 
   ytDlp.on("close", (code) => {
     audioUrl = audioUrl.trim().split("\n")[0];

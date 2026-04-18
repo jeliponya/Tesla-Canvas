@@ -46,9 +46,7 @@ function renderLoop() {
     playerScreen.style.display = "flex";
     pauseBtn.style.display = "inline-block";
     setLoading("");
-    // Ses ve video sync: ilk kare gelince audio URL hazirsa hemen basla
     audioReady = true;
-    if (pendingAudioUrl) { audio.src = pendingAudioUrl; audio.play().catch(() => {}); }
   }
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
@@ -66,15 +64,15 @@ function startPlayer(youtubeUrl) {
   frameQueue.length = 0; pauseBtn.style.display = "none";
   pauseBtn.textContent = "Duraklat";
   setStatus(""); setLoading("Baglaniyor...");
-  // Audio URL'yi video ile paralel cek; ilk kare gelince ikisi birden baslar
   fetch("/api/audio?url=" + encodeURIComponent(youtubeUrl))
     .then(r => r.json())
     .then(data => {
-      if (!data.url) return;
+      if (!data.url) { setStatus("Ses URL alinamadi", "error"); return; }
       pendingAudioUrl = data.url;
-      if (audioReady) { audio.src = pendingAudioUrl; audio.play().catch(() => {}); }
+      audio.src = data.url;
+      audio.play().catch(e => setStatus("Ses: " + e.message, "error"));
     })
-    .catch(() => {});
+    .catch(e => setStatus("Ses hatasi: " + e.message, "error"));
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   ws = new WebSocket(proto + "//" + location.host + "/ws/video?url=" + encodeURIComponent(youtubeUrl));
   ws.binaryType = "arraybuffer";
@@ -124,6 +122,7 @@ function togglePause() {
 playBtn.addEventListener("click", () => {
   const url = urlInput.value.trim();
   if (!url) return setStatus("Lutfen bir YouTube URL girin", "error");
+  audio.load(); // kullanici gestureu ile audio unlock
   startPlayer(url);
 });
 backBtn.addEventListener("click", stopPlayer);
