@@ -22,7 +22,8 @@
     #player-screen { display: none; flex-direction: column; width: 100vw; height: 100vh; background: #000; position: fixed; top: 0; left: 0; }
     #canvas { flex: 1; width: 100%; display: block; background: #000; }
     #bottom-bar { display: flex; align-items: center; padding: 8px 16px; background: rgba(0,0,0,0.85); gap: 12px; height: 46px; }
-    #back-btn { background: none; border: 1px solid #333; color: #ccc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    #back-btn, #pause-btn { background: none; border: 1px solid #333; color: #ccc; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    #pause-btn { border-color: #555; min-width: 80px; }
     #fps-badge { margin-left: auto; font-size: 11px; color: #444; }
     .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #333; border-top-color: #e82127; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -40,9 +41,10 @@
   </div>
   <div id="player-screen">
     <canvas id="canvas"></canvas>
-    <audio id="audio" autoplay></audio>
+    <audio id="audio"></audio>
     <div id="bottom-bar">
       <button id="back-btn">Geri</button>
+      <button id="pause-btn" style="display:none">Duraklat</button>
       <span id="loading-indicator"></span>
       <span id="fps-badge"></span>
     </div>

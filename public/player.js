@@ -1,4 +1,4 @@
-﻿const inputScreen      = document.getElementById("input-screen");
+const inputScreen      = document.getElementById("input-screen");
 const playerScreen     = document.getElementById("player-screen");
 const canvas           = document.getElementById("canvas");
 const ctx              = canvas.getContext("2d");
@@ -7,11 +7,12 @@ const urlInput         = document.getElementById("url-input");
 const playBtn          = document.getElementById("play-btn");
 const statusEl         = document.getElementById("status");
 const backBtn          = document.getElementById("back-btn");
+const pauseBtn         = document.getElementById("pause-btn");
 const loadingIndicator = document.getElementById("loading-indicator");
 const fpsBadge         = document.getElementById("fps-badge");
 const depWarning       = document.getElementById("dep-warning");
 
-let ws = null, animFrameId = null;
+let ws = null, animFrameId = null, paused = false;
 const frameQueue = [];
 let frameCount = 0, lastFpsCheck = Date.now(), firstFrame = true;
 
@@ -34,7 +35,7 @@ function setLoading(msg) { loadingIndicator.innerHTML = msg ? "<span class='spin
 
 function renderLoop() {
   animFrameId = requestAnimationFrame(renderLoop);
-  if (!frameQueue.length) return;
+  if (!frameQueue.length || paused) return;
   const bitmap = frameQueue.shift();
   if (firstFrame) {
     firstFrame = false;
@@ -42,7 +43,10 @@ function renderLoop() {
     canvas.height = bitmap.height;
     inputScreen.style.display = "none";
     playerScreen.style.display = "flex";
+    pauseBtn.style.display = "inline-block";
     setLoading("");
+    // Sesi ilk video karesiyle esle: autoplay yok, burada baslatiyoruz
+    audio.currentTime = 0;
     audio.play().catch(() => {});
   }
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
@@ -56,7 +60,9 @@ function renderLoop() {
 }
 
 function startPlayer(youtubeUrl) {
-  playBtn.disabled = true; firstFrame = true; frameQueue.length = 0;
+  playBtn.disabled = true; firstFrame = true; paused = false;
+  frameQueue.length = 0; pauseBtn.style.display = "none";
+  pauseBtn.textContent = "Duraklat";
   setStatus(""); setLoading("Baglaniyor...");
   audio.src = "/api/audio?url=" + encodeURIComponent(youtubeUrl);
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
@@ -87,8 +93,21 @@ function stopPlayer() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   playerScreen.style.display = "none";
   inputScreen.style.display = "flex";
+  paused = false; pauseBtn.style.display = "none";
   playBtn.disabled = false; fpsBadge.textContent = "";
   setStatus(""); setLoading("");
+}
+
+function togglePause() {
+  paused = !paused;
+  if (paused) {
+    audio.pause();
+    while (frameQueue.length) frameQueue.shift().close();
+    pauseBtn.textContent = "Devam";
+  } else {
+    audio.play().catch(() => {});
+    pauseBtn.textContent = "Duraklat";
+  }
 }
 
 playBtn.addEventListener("click", () => {
@@ -97,4 +116,5 @@ playBtn.addEventListener("click", () => {
   startPlayer(url);
 });
 backBtn.addEventListener("click", stopPlayer);
+pauseBtn.addEventListener("click", togglePause);
 urlInput.addEventListener("keydown", e => { if (e.key === "Enter") playBtn.click(); });
