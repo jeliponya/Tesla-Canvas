@@ -26,7 +26,8 @@ if (process.env.YT_COOKIES_B64) {
 }
 
 function ytdlpArgs(extraArgs, url) {
-  const base = ["--no-playlist", "--extractor-args", "youtube:player_client=ios,android,web", ...extraArgs, url];
+  const base = ["--no-playlist", "--js-runtimes", "node", "--remote-components", "ejs:github",
+                "--extractor-args", "youtube:player_client=web", ...extraArgs, url];
   return YT_COOKIES ? ["--cookies", YT_COOKIES, ...base] : base;
 }
 
