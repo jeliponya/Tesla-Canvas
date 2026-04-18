@@ -86,7 +86,7 @@ function startPlayer(youtubeUrl) {
     }
     try {
       const bitmap = await createImageBitmap(new Blob([event.data], { type: "image/jpeg" }));
-      if (frameQueue.length < 12) frameQueue.push(bitmap); else bitmap.close();
+      if (frameQueue.length < 4) frameQueue.push(bitmap); else bitmap.close();
     } catch {}
   };
   ws.onerror = () => { setLoading(""); setStatus("Baglanti hatasi", "error"); playBtn.disabled = false; };

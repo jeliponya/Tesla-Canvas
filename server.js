@@ -105,10 +105,11 @@ wss.on("connection", (ws, req) => {
     console.log("[~] FFmpeg baslatiliyor...");
     ffmpegProc = spawn("ffmpeg", [
       "-i", videoUrl,
-      "-vf", "fps=24,scale=640:-2",
+      "-vf", "fps=15,scale=426:-2",
       "-f", "image2pipe",
       "-vcodec", "mjpeg",
-      "-q:v", "5",
+      "-q:v", "10",
+      "-threads", "1",
       "-an",
       "pipe:1",
     ]);
